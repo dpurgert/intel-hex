@@ -28,5 +28,9 @@
   void main();
   void sendout();
   void rxbtxb();
+  void rxbtohex();
+  void prohex();
+  uint8_t cksum(uint8_t data);
+  uint8_t tohex(uint8_t byte);
  
 #endif

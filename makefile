@@ -20,4 +20,4 @@ def_fuse:
 		-Ulfuse:w:0x62:m -Uhfuse:w:0xdf:m -Uefuse:w:0xf9:m
 
 clean:
-	rm *hex *o *elf
+	rm *hex *elf

@@ -103,6 +103,10 @@ void rxbtohex() {
 
 void prohex(){
   int tmp=0x0;
+    if (fout > ((BUFSZ*2)-1)) {
+      //if we reached the end of the fifo, rollover to start
+      fout=0;
+    }
   if ((curst==INITST) && \
     (hxbuf[fout]==0x3a)||(hxbuf[fout]==0x0A)||(hxbuf[fout]==0x0D)) {
     //strip off :, \n, or \r, as they're control / human readability

@@ -1,6 +1,7 @@
 compile: main.c 
 	avr-gcc -std=c99 -mmcu=atmega88p -DF_CPU=1000000UL main.c usart.c \
     -o main.elf
+	avr-size -A main.elf
 
 upload: main.elf
 	avr-objcopy -j .text -j .data -O ihex main.elf main.hex

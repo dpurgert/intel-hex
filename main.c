@@ -149,6 +149,8 @@ void prohex(){
       }
 
       case ADDRLOC: {
+        /* Set EEPROM memory address offset.
+        *  TODO: change the if[...] blocks to another case series. */
         --fct;
         if (adrsz==4) {
           tmp=(tohex(hxbuf[fout++])<<12);
@@ -243,7 +245,12 @@ void prohex(){
       }
 
       case ERRORST: {
-        //do nothing for now.
+        //Transmit error message
+        uint8_t msg[]="Error encounterd.";
+        for (tc=0; tc<19; tc++) {
+          txbuf[tc]=msg[tc];
+        }
+        sendout();
         break;
       }
 
@@ -262,16 +269,76 @@ void prohex(){
 }
 
 void sendout (){
+  // enable transmitter ...
   if (tc>0) {
     UCSR0B |= (1<<UDRIE0);
   }
 }
 
 uint8_t tohex(uint8_t byte){
+  // Convert an incoming character to the hexadecimal number it's
+  // intended to convey.  This might be better as a series of 'if' 
+  // conditions... 
   switch (byte) {
     case 0x30: {
       //receive ascii 0
       return 0x0;
+    }
+    case 0x31: {
+      //receive ascii 1
+      return 0x1;
+    }
+    case 0x32: {
+      //receive ascii 2
+      return 0x2;
+    }
+    case 0x33: {
+      //receive ascii 3
+      return 0x3;
+    }
+    case 0x34: {
+      //receive ascii 4
+      return 0x4;
+    }
+    case 0x35: {
+      //receive ascii 5
+      return 0x5;
+    }
+    case 0x36: {
+      //receive ascii 6
+      return 0x6;
+    }
+    case 0x37: {
+      //receive ascii 7
+      return 0x7;
+    }
+    case 0x38: {
+      //receive ascii 8
+      return 0x8;
+    }
+    case 0x39: {
+      //receive ascii 9
+      return 0x9;
+    }
+    case 0x65: {
+      //receive ascii A
+      return 0xA;
+    }
+    case 0x66: {
+      //receive ascii B
+      return 0xB;
+    }
+    case 0x67: {
+      //receive ascii C
+      return 0xC;
+    }
+    case 0x68: {
+      //receive ascii D
+      return 0xD;
+    }
+    case 0x69: {
+      //receive ascii E
+      return 0xE;
     }
     default: {
       //received ascii F
@@ -281,6 +348,12 @@ uint8_t tohex(uint8_t byte){
 }
 
 uint8_t cksum(uint8_t data){
+    /*  Verify the checksum.  For Intel *hex files, the checksum 
+    *  value provided in a data line is the two's compliment of the 
+    *  sum of all data bytes.  A record can be validated by adding all
+    *  bytes received to the final checksum value; a result of zero (0)
+    *  indicates all is well.  Any other value is an error.
+    */
     int sum=0;
     for (int i=0; i<=dtp; i++) {
       sum=sum+prombuf[pb].pagedata[i];

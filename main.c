@@ -185,7 +185,6 @@ void prohex() {
     */
     switch((int)curst) {
       case INITST: {
-        printAscii(bt);
         if (bt==0x0A || bt==0x0D) {
           //Carriage Return or Line Feed.  Do nothing
           ;
@@ -284,7 +283,6 @@ void prohex() {
               printMsg(recmsg2,6);
             #endif
             curst=END;
-            hxc=1; //make sure we have at least one byte to "process"
           }
         }
         else {
@@ -357,12 +355,13 @@ void prohex() {
         case END: {
           if (eofct==2) {
             --eofct;
-            rdbuf=(tohex(bt));
+            rdbuf=(tohex(bt)<<4);
           }
           else {
             rdbuf|=(tohex(bt));
+            printAscii(rdbuf);
           }
-          if (rdbuf==0xFF && hxc==0x00) {
+          if (rdbuf==0xFF && hxc==0) {
             curst=INITST;
             uint8_t outmsg[]="EOF.\n";
             printMsg(outmsg,5);

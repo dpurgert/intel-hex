@@ -15,38 +15,52 @@
 ************************************************************************/
 
 #include "main.h"
+/**
+ * @file
+ * @brief Global variables
+ * 
+ * Global variables necessary to allow the program to run.  They 
+ * include three FIFO buffers as well as the various counters necessary
+ * to facilitate the use of our FIFOs.
+ *
+ * FIFOs:
+ *  * rxbuf - receive buffer
+ *  * txbuf - transmit buffer
+ *  * hxbuf - Intermediary hex-file working buffer
+ *
+ * Counters:
+ *  * rict = Receive input counter (wire / USART -> rxbuf)
+ *  * roct = Receive output counter (rxbuf -> hxpuf)
+ *  * hict = Hexfile input counter (rxbuf -> hxbuf)
+ *  * hoct = Hexfile output counter (hxbuf -> ???)
+ *  * tict = Transmit input counter (??? -> txbuf)
+ *  * toct = Transmit output counter (txbuf -> USART / wire)
+ *  * rc = received byte counter 
+ *  * tc = transmitted byte counter
+ *  * hxc = hex byte counter
+*/
+ 
 uint8_t rxbuf[BUFSZ];
 uint8_t txbuf[BUFSZ];
 uint8_t hxbuf[BUFSZ*2];
-uint8_t ibuf,obuf,tin,tout,rc,tc,pb,curst,dtsz,adrsz;
-uint8_t rt,dtl,dtb,dtc,dtp,cksz,ckb;
-uint16_t fin,fout,fct,adr;
+uint8_t rict, roct, hict, hoct, tict, toct, rc, tc, hxc;
 
-enum data_states {
-  INITST,  //FSM Initialization
-  DATASZ,  // Data size
-  ADDRLOC, // Address Offset
-  RECTYP,  // Record Type
-  DATA,    // Data 
-  CKSUM,   // Checksum Verification
-  END,     // EOF
-  ERRORST, // Something went wrong. Send an alert, wait for reset
-};
 
-struct promData {
-  uint16_t addr;
-  uint8_t pagedata[BUFSZ];
-};
-
-struct promData prombuf[BUFSZ];
-
+/**
+ * @brief USART RX Interrupt
+ * 
+ * ISR transfers data out of USART data register and into rx buffer
+ * for temporary storage until the data can be read into the "hexfile
+ * buffer" for hex-format processing.
+ */
 ISR(USART_RX_vect){
   if (rc<BUFSZ){
     ++rc;
-    if (ibuf>(BUFSZ-1)) {
-      ibuf=0;
+    if (rict>(BUFSZ-1)) {
+      //rollover to start of tx buffer FIFO
+      rict=0;
     }
-    rxbuf[ibuf++]=UDR0;
+    rxbuf[rict++]=UDR0;
   }
   else {
     //just read into trash to clear the int
@@ -54,13 +68,20 @@ ISR(USART_RX_vect){
   }
 }
 
+/**
+ * @brief USART Tx Interrupt
+ *
+ * ISR transfers data out of tx buffer and into USART data register for
+ * transmission to the remote system
+ */
+
 ISR(USART_UDRE_vect){
   if (tc>0) {
-    //we have stuff to transmit
-    if (tout>(BUFSZ-1)) {
-      tout=0;
+    if (toct>(BUFSZ-1)) {
+      //rollover to start of tx buffer FIFO
+      toct=0;
     }
-    UDR0=txbuf[tout++];
+    UDR0=txbuf[toct++];
     --tc;
   }
   else {
@@ -71,8 +92,13 @@ ISR(USART_UDRE_vect){
 
 void init(){
   initUSART(MYUBRR);
-  curst=INITST;
-  pb=0;
+  for (int i = 0; i<BUFSZ; i++) {
+    rxbuf[i]=0x00;
+    txbuf[i]=0x00;
+  }
+  for (int i = 0; i<HXSZ; i++) {
+    hxbuf[i]=0x00;
+  }
   sei(); 
 }  
 
@@ -85,195 +111,80 @@ void main() {
   }
 }
 
+/**
+ * @brief Receive buffer to Hex Buffer
+ *
+ * This function moves data out of the receive buffer and into the
+ * larger hexfile buffer.  May be able to do without this, and process
+ * directly out of RX buffer.
+*/
 void rxbtohex() {
   if (rc>0){
     --rc;
-    ++fct;
-    if (fin > ((BUFSZ*2)-1)) {
-      //if we reached the end of the fifo, rollover to start
-      fin=0;
+    ++hxc;
+    if ( hict > (HXSZ-1)) {
+      //rollover to start of hex buffer FIFO
+      hict=0;
     }
-    if (obuf > (BUFSZ-1)) {
-      //if we reached the end of the fifo, rollover to start
-      obuf=0;
+    if (roct > (BUFSZ-1)) {
+      //rollover to start of rx buffer FIFO
+      roct=0;
     }
-    hxbuf[fin++]=rxbuf[obuf++];
+    hxbuf[hict++]=rxbuf[roct++];
   }
 }
 
-void prohex(){
-  int tmp=0x0;
-    if (fout > ((BUFSZ*2)-1)) {
-      //if we reached the end of the fifo, rollover to start
-      fout=0;
+/**
+ * @brief Process Hex Buffer
+ *
+ * Work through the hex buffer.  For the moment, this is just copying
+ * our hxbuf into our txbuf in order to echo the message back.  This is
+ * to prove our FIFOs are behaving.
+*/
+void prohex() {
+  if (hxc>0){
+    --hxc;
+    ++tc;
+    if ( hoct > (HXSZ-1)) {
+      //rollover to start of hex buffer FIFO
+      hoct=0;
     }
-  if ((curst==INITST) && \
-    (hxbuf[fout]==0x3a)||(hxbuf[fout]==0x0A)||(hxbuf[fout]==0x0D)) {
-    //strip off :, \n, or \r, as they're control / human readability
-    //characters, and they're not necessary to the state machine
-    ++fout;
-    --fct;
-  }
-  //don't bother unless we have at least 2 bytes to work with
-  if ((fct-2)>=0) {
-    switch((int)curst) {
-      case INITST: {
-        curst=DATASZ;
-        dtsz=2; //2 characters to 1 byte data size (record length)
-        adrsz=4;//4 characters to 2 bytes address location
-        rt=2; //2 characters to 1 byte record type
-        cksz=2; //2 characters to 1 byte checksum
-        dtl=0; //data length reset
-        dtb=0; //data buffer reset
-        dtc=0; //data counter reset
-        dtp=0; //data position reset
-        break;
-      }
-
-      case DATASZ: {
-        //data record length
-        --fct;
-        if (dtsz==2) {
-          tmp=(tohex(hxbuf[fout++])<<4);
-          dtl=tmp;
-          --dtsz;
-        }
-        else {
-          tmp=(tohex(hxbuf[fout++]));
-          dtl|=tmp;
-          dtc=(dtl*2); //2 characters per byte
-          --dtsz;
-          curst=ADDRLOC;
-        }
-        break;
-      }
-
-      case ADDRLOC: {
-        /* Set EEPROM memory address offset.
-        *  TODO: change the if[...] blocks to another case series. */
-        --fct;
-        if (adrsz==4) {
-          tmp=(tohex(hxbuf[fout++])<<12);
-          adr=tmp;
-          --adrsz;
-        }
-        else if (adrsz==3) {
-          tmp=(tohex(hxbuf[fout++])<<8);
-          adr|=tmp;
-          --adrsz;
-        }
-        else if (adrsz==2) {
-          tmp=(tohex(hxbuf[fout++])<<4);
-          adr|=tmp;
-          --adrsz;
-        }
-        else {
-          tmp=(tohex(hxbuf[fout++]));
-          adr|=tmp;
-          prombuf[pb].addr=adr;
-          curst=RECTYP;
-        }
-        break;
-      }
-
-      case RECTYP: {
-        //check if it's data or EOF
-        --fct;
-        if (rt==2) {
-          --rt;
-          ++fout;
-        }
-        else {
-          tmp=(tohex(hxbuf[fout++]));
-          if (tmp==0x0) {
-            curst=DATA;
-          }
-          else {
-            curst=END;
-          }
-        }
-        break;
-      }
-
-      case DATA: {
-        --fct;
-        if ((dtc%2==0)&&(dtl>0)) {
-          //high nibble, dtc is even.
-          tmp=(tohex(hxbuf[fout++])<<4);
-          dtb=tmp;
-          --dtc;
-        }
-        else if ((dtc%2!=0)&&(dtl>0)) {
-          //low nibble, dtc is odd
-          tmp=(tohex(hxbuf[fout++]));
-          dtb|=tmp;
-          --dtc;
-          --dtl;
-          prombuf[pb].pagedata[dtp++]=dtb;
-        }
-        else {
-          //we're out of data, increment the prombuffer
-          //and check the data
-          curst=CKSUM; //finished 
-        }
-        break;
-      }
-
-      case CKSUM: {
-        //store checksum to buffer, then check data
-        --fct;
-        if (cksz==2) {
-          --cksz;
-          tmp=(tohex(hxbuf[fout++])<<4);
-          ckb=tmp;
-        }
-        else {
-          --cksz;
-          tmp=(tohex(hxbuf[fout++]));
-          ckb|=tmp;
-          if (cksum(ckb)==0) {
-            //everything's OK
-            ++pb;
-            curst=INITST;
-          }
-          else {
-            //checksum failed
-            curst=ERRORST;
-          }
-        break;
-        }
-      }
-
-      case ERRORST: {
-        //Transmit error message
-        uint8_t msg[]="Error encounterd.";
-        for (tc=0; tc<19; tc++) {
-          txbuf[tc]=msg[tc];
-        }
-        sendout();
-        break;
-      }
-
-      case END: {
-        //do nothing for now.
-        break;
-      }
-
-      default: {
-        //something went wrong.
-        break;
-      }
-
+    if (tict > (BUFSZ-1)) {
+      //rollover to start of tx buffer FIFO
+      tict=0;
     }
+    txbuf[tict++]=hxbuf[hoct++];
   }
+  //always try to enable the transmitter.
+  sendout();
 }
 
+  
+/**
+ * @brief Enable USART transmitter
+ * 
+ * Enables the transmitter if there's anything in the transmit counter.
+*/
 void sendout (){
   // enable transmitter ...
   if (tc>0) {
     UCSR0B |= (1<<UDRIE0);
   }
 }
+
+/**
+ * @brief Copy an arbitrary message into the txbuf FIFO, then enable the 
+ * transmitter
+*/
+void printMsg(uint8_t *msg, uint8_t len){
+  for (tc=0; tc<len; tc++) {
+    txbuf[tc]=msg[tc];
+    sendout();
+  }
+}
+  
+
+/*  Removed for now, since they didn't work.    
 
 uint8_t tohex(uint8_t byte){
   // Convert an incoming character to the hexadecimal number it's
@@ -353,7 +264,7 @@ uint8_t cksum(uint8_t data){
     *  sum of all data bytes.  A record can be validated by adding all
     *  bytes received to the final checksum value; a result of zero (0)
     *  indicates all is well.  Any other value is an error.
-    */
+    /
     int sum=0;
     for (int i=0; i<=dtp; i++) {
       sum=sum+prombuf[pb].pagedata[i];
@@ -361,3 +272,4 @@ uint8_t cksum(uint8_t data){
     sum = sum + data;
     return sum;
 }
+*/

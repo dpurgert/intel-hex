@@ -28,18 +28,33 @@
   #define __HEX_MAIN__ 1
   #include "common.h"
 
+  /**
+   * @brief debug mode.
+  */
+  #define DEBUG 1
+
   //TODO: replace the USART hard definitions with a read from EEPROM
   #define BAUD 4800
   #define MYUBRR (F_CPU/16/BAUD-1)
   /**
-   * @brief Tx and Rx buffer size
+   * @brief Rx buffer size
   */
   #define BUFSZ 16
+  /**
+   * @brief Tx buffer size
+  */
+  #define TBUFSZ BUFSZ*2 
+  /**
+   * @brief EEPROM Page size.
+   * 
+   * Default assumes 16 byte pages, to fit "hello world" in one page.
+  */
+  #define PGSZ 16
   /**
    * @brief Hex File buffer size.  4x BUFSZ for now, testing may prove a
    * larger buffer is warranted.
   */ 
-  #define HXSZ BUFSZ*2
+  #define HXSZ BUFSZ*4
   /**
    * @brief FIFO buffer for USART Rx
   */
@@ -47,7 +62,7 @@
   /**
    * @brief FIFO buffer for USART Tx
   */
-  extern uint8_t txbuf[BUFSZ];
+  extern uint8_t txbuf[TBUFSZ];
   /**
    * @brief Hex "file" processing buffer
   */
@@ -108,5 +123,7 @@
    *   (ASCII - Hello World!)
    */
   uint8_t tohex(uint8_t byte);
+  
+  void printAscii(uint8_t data);
  
 #endif

@@ -17,33 +17,27 @@
 #include "main.h"
 /**
  * @file
- * @brief Global variables
+ * @brief main.c
+ *
+ * Core program file for the project that ties the modules together.
+ * For detailed descriptions of the functions, see either generated
+ * doxygen documentation, or descriptions in main.h
  * 
- * Global variables necessary to allow the program to run.  They 
- * include three FIFO buffers as well as the various counters necessary
- * to facilitate the use of our FIFOs.
- *
- * FIFOs:
- *  * rxbuf - receive buffer
- *  * txbuf - transmit buffer
- *  * hxbuf - Intermediary hex-file working buffer
- *
- * Counters:
- *  * rict = Receive input counter (wire / USART -> rxbuf)
- *  * roct = Receive output counter (rxbuf -> hxpuf)
- *  * hict = Hexfile input counter (rxbuf -> hxbuf)
- *  * hoct = Hexfile output counter (hxbuf -> ???)
- *  * tict = Transmit input counter (??? -> txbuf)
- *  * toct = Transmit output counter (txbuf -> USART / wire)
- *  * rc = received byte counter 
- *  * tc = transmitted byte counter
- *  * hxc = hex byte counter
 */
- 
+
 uint8_t rxbuf[BUFSZ];
 uint8_t txbuf[BUFSZ];
 uint8_t hxbuf[BUFSZ*2];
-uint8_t rict, roct, hict, hoct, tict, toct, rc, tc, hxc;
+ 
+uint8_t rict, //!<Receive input counter (wire / UDR0 -> rxbuf)
+        roct, //!<Receive output counter (rxbuf -> hxbuf)
+        hict, //!<Hexfile input counter (rxbuf -> hxbuf)
+        hoct, //!<Hexfile output counter (hxbuf -> ???)
+        tict, //!<Transmit input counter (??? -> txbuf)
+        toct, //!<Transmit output counter (txbuf -> UDR0 / wire)
+        rc, //!<Received Byte counter (if >0, bytes to process in rxbuf)
+        tc, //!<Transmit Byte counter (if >0, bytes to process in txbuf)
+        hxc;//!<Hexfile Byte counter (if >0, bytes to process in hxbuf)
 
 
 /**
@@ -74,7 +68,6 @@ ISR(USART_RX_vect){
  * ISR transfers data out of tx buffer and into USART data register for
  * transmission to the remote system
  */
-
 ISR(USART_UDRE_vect){
   if (tc>0) {
     if (toct>(BUFSZ-1)) {
@@ -111,13 +104,6 @@ void main() {
   }
 }
 
-/**
- * @brief Receive buffer to Hex Buffer
- *
- * This function moves data out of the receive buffer and into the
- * larger hexfile buffer.  May be able to do without this, and process
- * directly out of RX buffer.
-*/
 void rxbtohex() {
   if (rc>0){
     --rc;
@@ -134,13 +120,6 @@ void rxbtohex() {
   }
 }
 
-/**
- * @brief Process Hex Buffer
- *
- * Work through the hex buffer.  For the moment, this is just copying
- * our hxbuf into our txbuf in order to echo the message back.  This is
- * to prove our FIFOs are behaving.
-*/
 void prohex() {
   if (hxc>0){
     --hxc;
@@ -160,11 +139,6 @@ void prohex() {
 }
 
   
-/**
- * @brief Enable USART transmitter
- * 
- * Enables the transmitter if there's anything in the transmit counter.
-*/
 void sendout (){
   // enable transmitter ...
   if (tc>0) {

@@ -3,4 +3,5 @@
 *.o
 *.hexI
 *.disasm
+docs/*
 

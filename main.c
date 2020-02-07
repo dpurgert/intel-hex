@@ -39,20 +39,8 @@ uint8_t rict, //!<Receive input counter (wire / UDR0 -> rxbuf)
         tc, //!<Transmit Byte counter (if >0, bytes to process in txbuf)
         hxc,//!<Hexfile Byte counter (if >0, bytes to process in hxbuf)
         curst,//!<State Machine current state.
-        dtsz,//!<Number of bytes left to read in ByteCount segment
-        adrsz,//!<Number of bytes left to read in Address segment
-        rtsz,//!<Number of bytes left to read in Record Type segment
-        cksz,//!<Number of bytes left to read in Checksum segment
-        rtd,//!<Record Type Data
-        dtl,//!<Number of Bytes left to read in Data segment (2*dtsz)
-        dtb,//!<DataBuffer
-        ckb,//!<Checksum Buffer 
-        dtc,//!<High nibble (0) or low nibble(1)
-        rdbuf,//!<spare readbuffer.
-        eofct,//!<to read in 'ff' for end record
         dtp;//!<Byte counter for EEPROM PageData
 
-uint16_t adr; //!<EEPROM Address Word from Ihex file
 
 
 /**
@@ -77,7 +65,7 @@ enum data_states {
  * 
  * Stores the EEPROM page data until we've written it out to the
  * connected device.  16 bit addresses integer conforms to ihex format
- * using 16-bit address offsets.
+ * using 16-bit address offsets.  Might be able to non-static this.
 */
 struct promData {
   uint16_t addr;
@@ -183,6 +171,18 @@ void prohex() {
      *
      * State machine to work through a data record.
     */
+    static uint8_t dtsz,//!<Bytes left in ByteCount segment
+                   adrsz,//!<Bytes left in Address segment
+                   rtsz,//!<Bytes left in Record Type segment
+                   cksz,//!<Bytes left in Checksum segment
+                   rtd,//!<Record Type Data
+                   dtl,//!<Bytes left in Data segment (2*dtsz)
+                   dtb,//!<DataBuffer
+                   ckb,//!<Checksum Buffer 
+                   dtc,//!<High nibble (0) or low nibble(1)
+                   rdbuf,//!<spare readbuffer.
+                   eofct;//!<to read in 'ff' for end record
+    uint16_t adr; //!<EEPROM Address Word from Ihex file
     switch((int)curst) {
       case INITST: {
         if (bt==0x0A || bt==0x0D) {
@@ -199,20 +199,23 @@ void prohex() {
           //reading this record, and move into reading the ByteCount
           //segment (DATASZ state)
           curst=DATASZ;
-          dtsz=2; //2 characters to 1 byte data size (record length)
-          adrsz=4;//4 characters to 2 bytes address location
-          rtsz=2; //2 characters to 1 byte record type
-          cksz=2; //2 characters to 1 byte checksum
-          eofct=2; //2 characters to 1 byte EOF 
-          rtd=0; //record type reset
-          dtl=0; //data length reset
-          dtb=0; //data buffer reset
-          dtc=0; //data counter reset
-          dtp=0; //data position reset
           //reset EEPROM page
           for (int i=0;i<PGSZ;i++) {
             PROM.pagedata[i]=0x00;
           }
+          dtsz=2;
+          adrsz=4;
+          rtsz=2;
+          cksz=2;
+          rtd=0;
+          dtl=0;
+          dtb=0;
+          ckb=0;
+          dtc=0;
+          rdbuf=0;
+          eofct=2;
+          dtp=0;
+          adr=0; 
         }
         break;
       }

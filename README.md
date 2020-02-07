@@ -5,7 +5,7 @@ AVR parser for intel hex
 
 If this works, long term plan is to make an EEPROM programmer.
 
-##Revision History
+## Revision History
 version 0.4 (sure, let's go with that)
  - Successfully reads and verifies a data record.
  - Successfully determines an EOF record.

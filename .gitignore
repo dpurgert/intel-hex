@@ -1,4 +1,7 @@
 *.hex
 *.elf
 *.o
+*.hexI
+*.disasm
+docs/*
 

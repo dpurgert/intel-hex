@@ -65,7 +65,8 @@ enum data_states {
  * 
  * Stores the EEPROM page data until we've written it out to the
  * connected device.  16 bit addresses integer conforms to ihex format
- * using 16-bit address offsets.  Might be able to non-static this.
+ * using 16-bit address offsets.  Might be able get away from a struct
+ * for this.
 */
 struct promData {
   uint16_t addr;
@@ -166,23 +167,24 @@ void prohex() {
     }
     uint8_t bt = hxbuf[hoct++];
     
-    /**
-     * @brief State Machine logic
+    /*
+     * State Machine logic to work through a data record
      *
-     * State machine to work through a data record.
+     * TODO: Consider a bigger EEPROM data struct.
+     * TODO: Write out to TWI EEPROM after a record id verified.
     */
-    static uint8_t dtsz,//!<Bytes left in ByteCount segment
-                   adrsz,//!<Bytes left in Address segment
-                   rtsz,//!<Bytes left in Record Type segment
-                   cksz,//!<Bytes left in Checksum segment
-                   rtd,//!<Record Type Data
-                   dtl,//!<Bytes left in Data segment (2*dtsz)
-                   dtb,//!<DataBuffer
-                   ckb,//!<Checksum Buffer 
-                   dtc,//!<High nibble (0) or low nibble(1)
-                   rdbuf,//!<spare readbuffer.
-                   eofct;//!<to read in 'ff' for end record
-    uint16_t adr; //!<EEPROM Address Word from Ihex file
+    static uint8_t dtsz, //Bytes left in ByteCount segment
+                   adrsz, //Bytes left in Address segment
+                   rtsz, //Bytes left in Record Type segment
+                   cksz, //Bytes left in Checksum segment
+                   rtd, //Record Type Data
+                   dtl, //Bytes left in Data segment (2*dtsz)
+                   dtb, //DataBuffer
+                   ckb, //Checksum Buffer 
+                   dtc, //High nibble (0) or low nibble(1)
+                   rdbuf, //spare readbuffer.
+                   eofct; //to read in 'ff' for end record
+    static uint16_t adr; //EEPROM Address Word from Ihex file
     switch((int)curst) {
       case INITST: {
         if (bt==0x0A || bt==0x0D) {

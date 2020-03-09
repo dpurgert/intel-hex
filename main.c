@@ -70,6 +70,7 @@ enum data_states {
 */
 struct promData {
   uint16_t addr;
+  uint8_t pagesize;
   uint8_t pagedata[PGSZ];
 } PROM;
 
@@ -229,6 +230,7 @@ void prohex() {
         }
         else if (dtsz>0){
           dtl|=(tohex(bt));
+          PROM.pagesize=dtl;
           dtl=dtl*2; //double because ihex uses 2B per actual byte
           --dtsz;
           curst=ADDRLOC;

@@ -37,24 +37,24 @@
   #define BAUD 4800
   #define MYUBRR (F_CPU/16/BAUD-1)
   /**
-   * @brief Rx buffer size
-  */
-  #define BUFSZ 16
-  /**
-   * @brief Tx buffer size
-  */
-  #define TBUFSZ BUFSZ*2 
-  /**
    * @brief EEPROM Page size.
    * 
-   * Default assumes 16 byte pages, to fit "hello world" in one page.
+   * Default assumes 64 byte pages, as per 28Cxx EEPROM
   */
-  #define PGSZ 16
+  #define PGSZ 64
   /**
-   * @brief Hex File buffer size.  4x BUFSZ for now, testing may prove a
-   * larger buffer is warranted.
+   * @brief Rx buffer size - 3x PGSZ (192 Bytes)
+  */
+  #define BUFSZ PGSZ*3
+  /**
+   * @brief Tx buffer size - PGSZ
+  */
+  #define TBUFSZ PGSZ 
+  /**
+   * @brief Hex File buffer size. PGSZ*2 for now, testing may prove it
+   * can be smaller.
   */ 
-  #define HXSZ BUFSZ*4
+  #define HXSZ PGSZ*2 
   /**
    * @brief FIFO buffer for USART Rx
   */
@@ -123,7 +123,16 @@
    *   (ASCII - Hello World!)
    */
   uint8_t tohex(uint8_t byte);
-  
+
+  /**
+   * @brief Translate outgoing data
+   *
+   * This function translates a byte of data into a 2-byte ASCII
+   * representation, suitable for transmission back out over the USART.
+   *
+   * For example, an integer with the value "0x01" will be converted
+   * into the char array [0,1] (ASCII 0x30, 0x31) for transmission.
+   */
   void printAscii(uint8_t data);
- 
+  
 #endif

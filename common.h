@@ -30,8 +30,10 @@
   #include <avr/io.h>
   #include <avr/interrupt.h>
   #include <stdint.h>
+  #include "pinouts/chips.h"
   #include "main.h"
   #include "usart.h"
+  
 
 #endif
 
